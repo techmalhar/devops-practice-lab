@@ -1,0 +1,160 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+import './App.css';
+
+const API_URL = 'http://localhost:8000';
+
+function App() {
+  const [foodItems, setFoodItems] = useState([{ name: '', quantity: 100, unit: 'g' }]);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const addFoodItem = () => {
+    setFoodItems([...foodItems, { name: '', quantity: 100, unit: 'g' }]);
+  };
+
+  const removeFoodItem = (index) => {
+    const newItems = foodItems.filter((_, i) => i !== index);
+    setFoodItems(newItems);
+  };
+
+  const updateFoodItem = (index, field, value) => {
+    const newItems = [...foodItems];
+    newItems[index][field] = value;
+    setFoodItems(newItems);
+  };
+
+  const calculateNutrition = async () => {
+    setLoading(true);
+    setError(null);
+    
+    const validItems = foodItems.filter(item => item.name.trim() !== '');
+    
+    if (validItems.length === 0) {
+      setError('Please add at least one food item');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const response = await axios.post(`${API_URL}/calculate`, {
+        items: validItems.map(item => ({
+          name: item.name,
+          quantity: item.quantity
+        }))
+      });
+      setResult(response.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Something went wrong. Make sure backend is running on port 8000');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="app-container">
+      <div className="header">
+        <h1>🏋️‍♂️ Fitness Tracker</h1>
+        <p>Track your nutrition with AI-powered food analysis</p>
+      </div>
+
+      <div className="main-card">
+        <h2 className="section-title">What did you eat today?</h2>
+
+        {foodItems.map((item, index) => (
+          <div key={index} className="food-item">
+            <input
+              type="text"
+              placeholder="Food name (e.g., chicken, rice, apple)"
+              value={item.name}
+              onChange={(e) => updateFoodItem(index, 'name', e.target.value)}
+              className="food-input"
+            />
+            <input
+              type="number"
+              placeholder="Quantity"
+              value={item.quantity}
+              onChange={(e) => updateFoodItem(index, 'quantity', parseInt(e.target.value) || 0)}
+              className="quantity-input"
+            />
+            <select
+              value={item.unit}
+              onChange={(e) => updateFoodItem(index, 'unit', e.target.value)}
+              className="unit-select"
+            >
+              <option value="g">grams (g)</option>
+              <option value="ml">milliliters (ml)</option>
+              <option value="piece">piece</option>
+            </select>
+            {foodItems.length > 1 && (
+              <button onClick={() => removeFoodItem(index)} className="remove-btn">
+                ❌
+              </button>
+            )}
+          </div>
+        ))}
+
+        <button onClick={addFoodItem} className="add-btn">
+          ➕ Add more food
+        </button>
+
+        <button
+          onClick={calculateNutrition}
+          disabled={loading}
+          className="calculate-btn"
+        >
+          {loading ? 'Calculating...' : 'Calculate Nutrition 🧮'}
+        </button>
+
+        {error && <div className="error">{error}</div>}
+
+        {result && (
+          <div className="results">
+            <h3 className="results-title">Nutrition Summary</h3>
+            
+            <div className="nutrition-grid">
+              <div className="nutrition-card calories">
+                <div className="nutrition-label">🔥 Calories</div>
+                <div className="nutrition-value">{Math.round(result.total.calories)}</div>
+                <div className="nutrition-unit">kcal</div>
+              </div>
+              <div className="nutrition-card protein">
+                <div className="nutrition-label">💪 Protein</div>
+                <div className="nutrition-value">{Math.round(result.total.protein)}</div>
+                <div className="nutrition-unit">g</div>
+              </div>
+              <div className="nutrition-card carbs">
+                <div className="nutrition-label">🍚 Carbs</div>
+                <div className="nutrition-value">{Math.round(result.total.carbs)}</div>
+                <div className="nutrition-unit">g</div>
+              </div>
+              <div className="nutrition-card fat">
+                <div className="nutrition-label">🥑 Fat</div>
+                <div className="nutrition-value">{Math.round(result.total.fat)}</div>
+                <div className="nutrition-unit">g</div>
+              </div>
+            </div>
+
+            <div className="items-breakdown">
+              <div className="breakdown-title">📋 Detailed Breakdown</div>
+              {result.items.map((item, idx) => (
+                <div key={idx} className="breakdown-item">
+                  <span className="capitalize">{item.name}</span>
+                  <span>
+                    {Math.round(item.calories)} cal | 
+                    P: {Math.round(item.protein)}g | 
+                    C: {Math.round(item.carbs)}g | 
+                    F: {Math.round(item.fat)}g
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
