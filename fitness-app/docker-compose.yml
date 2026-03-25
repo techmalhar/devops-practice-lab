@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: fitness-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: fitness@123
+      MYSQL_DATABASE: fitness_app
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - fitness-network
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: fitness-backend
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: fitness@123
+      MYSQL_DATABASE: fitness_app
+      USDA_API_KEY: ${USDA_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    networks:
+      - fitness-network
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    container_name: fitness-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - fitness-network
+    restart: unless-stopped
+
+networks:
+  fitness-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
